@@ -15,25 +15,6 @@ public class MainActivity extends AppCompatActivity implements CountDownFragment
     private CountDownFragment mCountDownFragment;
     private CountDownTask mCountDownTask;
 
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onCountDownEvent(CountDownEvent event) {
-        //AsyncTask에서 하던것을 데려옴
-        mCountTextView.setText(event.count + "");
-        //fragment에서 setText한 것
-        mCountDownFragment.setCount(event.count);
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        EventBus.getDefault().register(this);
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        EventBus.getDefault().unregister(this);
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +34,13 @@ public class MainActivity extends AppCompatActivity implements CountDownFragment
 
     @Override
     public void onStartButtonClicked() {
-        mCountDownTask = new CountDownTask();
+        mCountDownTask = new CountDownTask(new CountDownTask.CountTickListener() {
+            @Override
+            public void onTick(int count) {
+                mCountTextView.setText(count + "");
+                mCountDownFragment.setCount(count);
+            }
+        });
         mCountDownTask.execute();
     }
 
@@ -73,11 +60,19 @@ public class MainActivity extends AppCompatActivity implements CountDownFragment
         mCountDownTask = null;
     }
 
-    static class CountDownEvent {
-        int count;
-    }
 
     static class CountDownTask extends AsyncTask<Void, Integer, Void> {
+
+        interface CountTickListener {
+            void onTick(int count);
+        }
+
+        private CountTickListener mListener;
+
+        public CountDownTask(CountTickListener listener) {
+            mListener = listener;
+        }
+
         @Override
         protected Void doInBackground(Void... voids) {
             for (int i = 0; i <= 10; i++) {
@@ -95,16 +90,9 @@ public class MainActivity extends AppCompatActivity implements CountDownFragment
         protected void onProgressUpdate(Integer... values) {
             super.onProgressUpdate(values);
 
-            CountDownEvent event = new CountDownEvent();
-            // 값을 넣고
-            event.count = values[0];
-            // 쏘기(이벤트발생)
-            EventBus.getDefault().post(event);
 
-            //main에서의 setText한것
-//            mCountTextView.setText(values[0] + "");
-//            //fragment에서 setText한 것
-//            mCountDownFragment.setCount(values[0]);
+            mListener.onTick(values[0]);
+
         }
     }
 }
